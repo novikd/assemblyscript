@@ -305,6 +305,52 @@ function runTest(basename) {
         instantiateUntouched.end(SKIPPED);
       }
 
+      if (config.export_json) {
+        stdout.length = 0;
+        stderr.length = 0;
+
+        let compareExportedJson = section("compare exported json");
+        cmd = [
+          basename + ".ts",
+          "--baseDir", basedir,
+          "--debug",
+          "--exportJson" // -> stdout
+        ];
+        asc.main(cmd, {
+          stdout: stdout,
+          stderr: stderr
+        }, err => {
+          var actual = stdout.toString().replace(/\r\n/g, "\n");
+
+          if (args.create) {
+            fs.writeFileSync(path.join(basedir, basename + ".exported.json"), actual, { encoding: "utf8" });
+            console.log("  " + colorsUtil.yellow("Created fixture"));
+            compareExportedJson.end(SKIPPED);
+          } else {
+            let expected = fs.readFileSync(path.join(basedir, basename + ".exported.json"), { encoding: "utf8" }).replace(/\r\n/g, "\n");
+            if (args.noDiff) {
+              if (expected != actual) {
+                failed = true;
+                failedTests.add(basename);
+                compareExportedJson.end(FAILURE);
+              } else {
+                compareExportedJson.end(SUCCESS);
+              }
+            } else {
+              let diffs = diff(basename + ".exported.json", expected, actual);
+              if (diffs !== null) {
+                console.log(diffs);
+                failed = true;
+                failedTests.add(basename);
+                compareExportedJson.end(FAILURE);
+              } else {
+                compareExportedJson.end(SUCCESS);
+              }
+            }
+          }
+        });
+      }
+
       if (!asc_rtrace) return;
 
       stdout.length = 0;

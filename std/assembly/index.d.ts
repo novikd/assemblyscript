@@ -2066,3 +2066,6 @@ declare function external(...args: any[]): any;
 
 /** Annotates a global for lazy compilation. */
 declare function lazy(...args: any[]): any;
+
+/** Annotates a function for dumping during compilation it's signature to JSON file. */
+declare function exportjson(...args: any[]): any;

@@ -612,6 +612,25 @@ export class MemorySegment {
   ) {}
 }
 
+export class JsonExportedSignature {
+  functionName: string;
+  functionSignature: string;
+
+  constructor(name: string, signature: string) {
+    this.functionName = name;
+    this.functionSignature = signature;
+  }
+}
+
+export class GenericJsonExportedSignature extends JsonExportedSignature {
+  instantiationSignatures: string[] | null
+
+  constructor(name: string, signature: string, instantiationSignatures: string[] | null) {
+    super(name, signature);
+    this.instantiationSignatures = instantiationSignatures;
+  }
+}
+
 export class Module {
   constructor(
     /** Binaryen module reference. */
@@ -2061,6 +2080,16 @@ export class Module {
     columnNumber: Index
   ): void {
     binaryen._BinaryenFunctionSetDebugLocation(func, expr, fileIndex, lineNumber, columnNumber);
+  }
+
+  private exportedToJsonSignatures : JsonExportedSignature[] = [];
+
+  addJsonExportedSignature(signature: JsonExportedSignature): void {
+    this.exportedToJsonSignatures.push(signature);
+  }
+
+  getJsonExportedSignatures(): JsonExportedSignature[] {
+    return this.exportedToJsonSignatures;
   }
 }
 

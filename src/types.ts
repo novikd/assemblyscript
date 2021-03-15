@@ -74,6 +74,8 @@ export const enum TypeKind {
 
   // other
 
+  PLACEHOLDER,
+
   /** No return type. */
   VOID
 }
@@ -716,6 +718,20 @@ export class Type {
   static readonly auto: Type = new Type(Type.i32.kind, Type.i32.flags, Type.i32.size);
 }
 
+/** Represents a placeholder for type parameter of resolved generic type without specified type arguments. */
+export class TypePlaceholder extends Type {
+  id: i32
+
+  constructor(id: i32) {
+    super(TypeKind.PLACEHOLDER, TypeFlags.NONE, 0);
+    this.id = id;
+  }
+
+  toString(validWat: bool = false): string {
+    return "T$" + this.id;
+  }
+}
+
 /** Converts an array of types to an array of native types. */
 export function typesToNativeTypes(types: Type[]): NativeType[] {
   var numTypes = types.length;
@@ -938,5 +954,24 @@ export class Signature {
       cloneParameterTypes[i] = parameterTypes[i];
     }
     return new Signature(this.program, cloneParameterTypes, this.returnType, this.thisType);
+  }
+}
+/** Represent function signature with generic type parameters. */
+export class GenericSignature extends Signature {
+  typeParameters: Type[]
+
+  constructor(
+    program: Program,
+    typeParameters: Type[],
+    parameterTypes: Type[] | null = null,
+    returnType: Type | null = null,
+    thisType: Type | null = null,
+  ) {
+    super(program, parameterTypes, returnType, thisType);
+    this.typeParameters = typeParameters;
+  }
+
+  toString(validWat: bool = false): string {
+    return "<" + typesToString(this.typeParameters) + "> " + super.toString();
   }
 }

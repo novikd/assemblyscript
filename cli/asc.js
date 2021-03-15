@@ -805,9 +805,12 @@ exports.main = function main(argv, options, callback) {
   }
 
   var module;
+  let jsonExportedSignatures;
   stats.compileCount++;
   stats.compileTime += measure(() => {
     module = assemblyscript.compile(program);
+    // Collect information about exported signatures before we start to use Binaryen.js
+    jsonExportedSignatures = module.getJsonExportedSignatures();
     // From here on we are going to use Binaryen.js, except that we keep pass
     // order as defined in the compiler.
     if (typeof module === "number") { // Wasm
@@ -965,6 +968,17 @@ exports.main = function main(argv, options, callback) {
         } else {
           stderr.write("Skipped source map (stdout already occupied)" + EOL);
         }
+      }
+    }
+
+    // Write functions marked @exportjson decorator to JSON file
+    if (opts.exportJson != null) {
+      let out = JSON.stringify(jsonExportedSignatures, null, 2);
+      if (opts.exportJson.length) {
+        writeFile(opts.exportJson, out, baseDir);
+      } else if (!hasStdout) {
+        writeStdout(out);
+        hasStdout = true;
       }
     }
 

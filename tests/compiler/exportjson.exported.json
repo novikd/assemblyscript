@@ -1,0 +1,32 @@
+[
+  {
+    "functionName": "f",
+    "functionSignature": "() => i32"
+  },
+  {
+    "functionName": "g",
+    "functionSignature": "() => i32"
+  },
+  {
+    "functionName": "len",
+    "functionSignature": "<T$0> (T$0) => f64",
+    "instantiationSignatures": [
+      "(exportjson/MyLen) => f64",
+      "(exportjson/Len) => f64",
+      "(~lib/array/Array<i32>) => f64"
+    ]
+  },
+  {
+    "functionName": "test",
+    "functionSignature": "<T$0> (T$0) => T$0",
+    "instantiationSignatures": [
+      "(i32) => i32",
+      "(~lib/string/String) => ~lib/string/String",
+      "(exportjson/Len) => exportjson/Len"
+    ]
+  },
+  {
+    "functionName": "check",
+    "functionSignature": "(exportjson/Len) => void"
+  }
+]

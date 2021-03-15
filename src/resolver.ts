@@ -86,7 +86,7 @@ import {
   Type,
   Signature,
   typesToString,
-  TypeKind
+  TypeKind, TypePlaceholder, GenericSignature
 } from "./types";
 
 import {
@@ -114,6 +114,14 @@ export enum ReportMode {
   REPORT,
   /** Swallow errors. */
   SWALLOW
+}
+
+/** Indicates whether all required type parameters must be specified or not. */
+export enum ResolveMode {
+  /** Type parameters must be specified. */
+  STRICT,
+  /** Allows to use {@link TypePlaceholder} as unspecified type parameter. */
+  GENERIC
 }
 
 /** Provides tools to resolve types and expressions. */
@@ -2596,7 +2604,9 @@ export class Resolver extends DiagnosticEmitter {
     /** Contextual types, i.e. `T`. */
     ctxTypes: Map<string,Type> = uniqueMap<string,Type>(),
     /** How to proceed with eventual diagnostics. */
-    reportMode: ReportMode = ReportMode.REPORT
+    reportMode: ReportMode = ReportMode.REPORT,
+    /** How to proceed with unspecified type parameters. */
+    resolveMode: ResolveMode = ResolveMode.STRICT
   ): Function | null {
     var actualParent = prototype.parent.kind == ElementKind.PROPERTY_PROTOTYPE
       ? prototype.parent.parent
@@ -2646,6 +2656,20 @@ export class Resolver extends DiagnosticEmitter {
           (<TypeParameterNode[]>typeParameterNodes)[i].name.text,
           typeArguments[i]
         );
+      }
+    } else if (resolveMode != ResolveMode.STRICT) {
+      if (typeParameterNodes) {
+        typeArguments = [];
+
+        for (let i = 0; i < typeParameterNodes.length; ++i) {
+          let placeholder = new TypePlaceholder(ctxTypes.size);
+          ctxTypes.set(
+            (<TypeParameterNode[]>typeParameterNodes)[i].name.text,
+            placeholder
+          );
+          typeArguments.push(placeholder);
+        }
+        instanceKey = typesToString(typeArguments);
       }
     } else {
       assert(!typeParameterNodes || typeParameterNodes.length == 0);
@@ -2734,7 +2758,11 @@ export class Resolver extends DiagnosticEmitter {
       returnType = type;
     }
 
-    var signature = new Signature(this.program, parameterTypes, returnType, thisType);
+    var signature : Signature;
+    if (resolveMode == ResolveMode.STRICT || !typeArguments)
+      signature = new Signature(this.program, parameterTypes, returnType, thisType);
+    else
+      signature = new GenericSignature(this.program, typeArguments, parameterTypes, returnType, thisType);
     signature.requiredParameters = requiredParameters;
 
     var nameInclTypeParameters = prototype.name;
@@ -2746,7 +2774,8 @@ export class Resolver extends DiagnosticEmitter {
       signature,
       ctxTypes
     );
-    prototype.setResolvedInstance(instanceKey, instance);
+    if (resolveMode == ResolveMode.STRICT)
+      prototype.setResolvedInstance(instanceKey, instance);
     return instance;
   }
 

@@ -2334,7 +2334,7 @@ export class Program extends DiagnosticEmitter {
     parent: Element
   ): FunctionPrototype | null {
     var name = declaration.name.text;
-    var validDecorators = DecoratorFlags.UNSAFE | DecoratorFlags.BUILTIN;
+    var validDecorators = DecoratorFlags.UNSAFE | DecoratorFlags.BUILTIN | DecoratorFlags.EXPORT_JSON;
     if (declaration.is(CommonFlags.AMBIENT)) {
       validDecorators |= DecoratorFlags.EXTERNAL;
     } else {
@@ -2660,7 +2660,9 @@ export enum DecoratorFlags {
   /** Is compiled lazily. */
   LAZY = 1 << 9,
   /** Is considered unsafe code. */
-  UNSAFE = 1 << 10
+  UNSAFE = 1 << 10,
+  /** Is dump candidate. */
+  EXPORT_JSON = 1 << 11
 }
 
 export namespace DecoratorFlags {
@@ -2680,6 +2682,7 @@ export namespace DecoratorFlags {
       case DecoratorKind.BUILTIN: return DecoratorFlags.BUILTIN;
       case DecoratorKind.LAZY: return DecoratorFlags.LAZY;
       case DecoratorKind.UNSAFE: return DecoratorFlags.UNSAFE;
+      case DecoratorKind.EXPORT_JSON: return DecoratorFlags.EXPORT_JSON;
       default: return DecoratorFlags.NONE;
     }
   }
@@ -3477,6 +3480,10 @@ export class FunctionPrototype extends DeclaredElement {
              parent.parent.kind == ElementKind.CLASS ||
              parent.parent.kind == ElementKind.INTERFACE
            );
+  }
+
+  get isGeneric(): bool {
+    return (<FunctionDeclaration>this.declaration).isGeneric;
   }
 
   /** Creates a clone of this prototype that is bound to a concrete class instead. */

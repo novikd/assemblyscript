@@ -82,6 +82,12 @@
     "alias": "b",
     "isPath": true
   },
+  "exportJson": {
+    "category": "Output",
+    "description": "Specifies the json output file for functions marked with @exportjson decorator.",
+    "type": "s",
+    "isPath": true
+  },
   "textFile": {
     "category": "Output",
     "description": "Specifies the text output file (.wat).",

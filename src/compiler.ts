@@ -4,206 +4,177 @@
  */
 
 import {
-  BuiltinNames,
   BuiltinContext,
+  BuiltinNames,
   builtins,
-  function_builtins,
+  compileClassInstanceOf,
+  compileRTTI,
   compileVisitGlobals,
   compileVisitMembers,
-  compileRTTI,
-  compileClassInstanceOf
+  function_builtins
 } from "./builtins";
 
-import {
-  DiagnosticCode,
-  DiagnosticEmitter
-} from "./diagnostics";
+import {DiagnosticCode, DiagnosticEmitter} from "./diagnostics";
 
 import {
-  Module,
-  MemorySegment,
-  ExpressionRef,
-  UnaryOp,
   BinaryOp,
-  RefIsOp,
-  NativeType,
-  FunctionRef,
+  createType,
   ExpressionId,
-  GlobalRef,
+  ExpressionRef,
+  ExpressionRunnerFlags,
   FeatureFlags,
-  Index,
-  getExpressionId,
-  getExpressionType,
-  getConstValueI32,
-  getConstValueI64Low,
-  getConstValueI64High,
+  FunctionRef,
+  GenericJsonExportedSignature,
+  getBlockChildAt,
+  getBlockChildCount,
+  getBlockName,
   getConstValueF32,
   getConstValueF64,
-  getBlockChildCount,
-  getBlockChildAt,
-  getBlockName,
-  needsExplicitUnreachable,
-  getLocalSetValue,
+  getConstValueI32,
+  getConstValueI64High,
+  getConstValueI64Low,
+  getExpressionId,
+  getExpressionType,
   getGlobalGetName,
-  isGlobalMutable,
-  createType,
+  getLocalSetValue,
   getSideEffects,
+  GlobalRef,
+  Index,
+  isConstZero,
+  isGlobalMutable,
+  JsonExportedSignature,
+  MemorySegment,
+  Module,
+  NativeType,
+  needsExplicitUnreachable,
+  RefIsOp,
   SideEffects,
   SwitchBuilder,
-  ExpressionRunnerFlags,
-  isConstZero
+  UnaryOp
 } from "./module";
 
 import {
   CommonFlags,
-  INSTANCE_DELIMITER,
-  STATIC_DELIMITER,
-  GETTER_PREFIX,
-  SETTER_PREFIX,
-  INDEX_SUFFIX,
   CommonNames,
   Feature,
-  Target,
-  featureToString
+  featureToString,
+  GETTER_PREFIX,
+  INDEX_SUFFIX,
+  INSTANCE_DELIMITER,
+  SETTER_PREFIX,
+  STATIC_DELIMITER,
+  Target
 } from "./common";
 
 import {
-  Program,
-  ClassPrototype,
   Class,
+  ClassPrototype,
+  ConstantValueKind,
+  DeclaredElement,
+  DecoratorFlags,
   Element,
   ElementKind,
   Enum,
-  Field,
-  FunctionPrototype,
-  Function,
-  Global,
-  Local,
   EnumValue,
-  Property,
-  VariableLikeElement,
-  ConstantValueKind,
-  OperatorKind,
-  DecoratorFlags,
-  PropertyPrototype,
-  IndexSignature,
+  Field,
   File,
+  Function,
+  FunctionPrototype,
+  Global,
+  IndexSignature,
+  Local,
   mangleInternalName,
-  DeclaredElement
+  OperatorKind,
+  Program,
+  Property,
+  PropertyPrototype,
+  VariableLikeElement
 } from "./program";
 
-import {
-  FlowFlags,
-  Flow,
-  LocalFlags,
-  FieldFlags,
-  ConditionKind,
-  findUsedLocals
-} from "./flow";
+import {ConditionKind, FieldFlags, findUsedLocals, Flow, FlowFlags, LocalFlags} from "./flow";
+
+import {ReportMode, ResolveMode, Resolver} from "./resolver";
+
+import {operatorTokenToString, Range, Token} from "./tokenizer";
 
 import {
-  Resolver,
-  ReportMode
-} from "./resolver";
-
-import {
-  Token,
-  Range,
-  operatorTokenToString
-} from "./tokenizer";
-
-import {
-  Node,
-  NodeKind,
-  DecoratorKind,
+  ArrayLiteralExpression,
+  AssertionExpression,
   AssertionKind,
-  SourceKind,
-  FunctionTypeNode,
-
-  Statement,
+  BinaryExpression,
   BlockStatement,
   BreakStatement,
+  CallExpression,
   ClassDeclaration,
+  CommaExpression,
   ContinueStatement,
   DeclarationStatement,
+  DecoratorKind,
   DoStatement,
+  ElementAccessExpression,
   EmptyStatement,
   EnumDeclaration,
   ExportDefaultStatement,
   ExportStatement,
+  Expression,
   ExpressionStatement,
   FieldDeclaration,
-  ForStatement,
+  findDecorator,
+  FloatLiteralExpression,
   ForOfStatement,
+  ForStatement,
   FunctionDeclaration,
+  FunctionExpression,
+  FunctionTypeNode,
+  IdentifierExpression,
   IfStatement,
   ImportStatement,
   InstanceOfExpression,
-  NamespaceDeclaration,
-  ReturnStatement,
-  SwitchStatement,
-  ThrowStatement,
-  TryStatement,
-  VariableStatement,
-  VoidStatement,
-  WhileStatement,
-
-  Expression,
-  AssertionExpression,
-  BinaryExpression,
-  CallExpression,
-  CommaExpression,
-  ElementAccessExpression,
-  FloatLiteralExpression,
-  FunctionExpression,
-  IdentifierExpression,
   IntegerLiteralExpression,
+  isTypeOmitted,
   LiteralExpression,
   LiteralKind,
+  NamedTypeNode,
+  NamespaceDeclaration,
   NewExpression,
+  Node,
+  NodeKind,
   ObjectLiteralExpression,
   ParenthesizedExpression,
   PropertyAccessExpression,
-  TernaryExpression,
-  ArrayLiteralExpression,
+  ReturnStatement,
+  SourceKind,
+  Statement,
   StringLiteralExpression,
+  SwitchStatement,
+  TernaryExpression,
+  ThrowStatement,
+  TryStatement,
   UnaryPostfixExpression,
   UnaryPrefixExpression,
-
-  NamedTypeNode,
-
-  findDecorator,
-  isTypeOmitted
+  VariableStatement,
+  VoidStatement,
+  WhileStatement
 } from "./ast";
 
-import {
-  Type,
-  TypeKind,
-  TypeFlags,
-  Signature,
-  typesToNativeTypes
-} from "./types";
+import {Signature, Type, TypeFlags, TypeKind, typesToNativeTypes} from "./types";
 
 import {
-  writeI8,
+  isPowerOf2,
+  readI32,
+  uniqueMap,
+  v128_zero,
+  writeF32,
+  writeF64,
   writeI16,
   writeI32,
   writeI64,
-  writeF32,
-  writeF64,
-  uniqueMap,
-  isPowerOf2,
-  v128_zero,
-  readI32
+  writeI8
 } from "./util";
 
-import {
-  RtraceMemory
-} from "./passes/rtrace";
+import {RtraceMemory} from "./passes/rtrace";
 
-import {
-  ShadowStackPass
-} from "./passes/shadowstack";
+import {ShadowStackPass} from "./passes/shadowstack";
 
 /** Compiler options. */
 export class Options {
@@ -743,6 +714,31 @@ export class Compiler extends DiagnosticEmitter {
     }
     if (program.lookup("ASC_RTRACE") != null) {
       new RtraceMemory(this).walkModule();
+    }
+
+    for (let _values = Map_values(program.elementsByName), i = 0, k = _values.length; i < k; ++i) {
+      let element = unchecked(_values[i]);
+      if (element.kind != ElementKind.FUNCTION_PROTOTYPE) continue;
+      let prototype = <FunctionPrototype>element;
+      if (prototype.hasDecorator(DecoratorFlags.EXPORT_JSON)) {
+        let generalSignature : string;
+
+        if (prototype.isGeneric) {
+          let resolvedSignature = this.resolver.resolveFunction(prototype, null, uniqueMap<string,Type>(), ReportMode.SWALLOW, ResolveMode.GENERIC);
+          if (!resolvedSignature) continue;
+          generalSignature = resolvedSignature.signature.toString();
+          let instances = prototype.instances;
+          let instantiationSignatures = !instances ? [] : Map_values(instances)
+            .map(instantiation => instantiation.signature.toString());
+          module.addJsonExportedSignature(new GenericJsonExportedSignature(prototype.name, generalSignature, instantiationSignatures));
+        }
+        else {
+          let resolvedFunction = this.resolver.resolveFunction(prototype, null);
+          if (!resolvedFunction) continue;
+          generalSignature = resolvedFunction.signature.toString();
+          module.addJsonExportedSignature(new JsonExportedSignature(prototype.name, generalSignature));
+        }
+      }
     }
 
     return module;
