@@ -1,0 +1,10 @@
+[
+  {
+    "functionName": "constructor",
+    "functionSignature": "(this: exportjson-bound/MyFoo, f64) => exportjson-bound/MyFoo"
+  },
+  {
+    "functionName": "g",
+    "functionSignature": "(f64, f64) => f64"
+  }
+]
