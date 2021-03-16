@@ -475,6 +475,9 @@ export class Program extends DiagnosticEmitter {
   /** A set of unique function signatures contained in the program, by id. */
   uniqueSignatures: Signature[] = new Array<Signature>(0);
 
+  /** A list of functions marked with @exportjson decorator. */
+  exportedToJsonFunctions: FunctionPrototype[] = [];
+
   // Standard library
 
   /** Gets the standard `ArrayBufferView` instance. */
@@ -1903,7 +1906,7 @@ export class Program extends DiagnosticEmitter {
   ): FunctionPrototype | null {
     var name = declaration.name.text;
     var isStatic = declaration.is(CommonFlags.STATIC);
-    var acceptedFlags = DecoratorFlags.INLINE | DecoratorFlags.UNSAFE;
+    var acceptedFlags = DecoratorFlags.INLINE | DecoratorFlags.UNSAFE | DecoratorFlags.EXPORT_JSON;
     if (!declaration.is(CommonFlags.GENERIC)) {
       acceptedFlags |= DecoratorFlags.OPERATOR_BINARY
                     |  DecoratorFlags.OPERATOR_PREFIX
@@ -1924,6 +1927,8 @@ export class Program extends DiagnosticEmitter {
     } else { // actual instance method
       if (!parent.addInstance(name, element)) return null;
     }
+    if (element.hasDecorator(DecoratorFlags.EXPORT_JSON))
+      this.exportedToJsonFunctions.push(element);
     this.checkOperatorOverloads(declaration.decorators, element, parent);
     return element;
   }
@@ -2355,6 +2360,8 @@ export class Program extends DiagnosticEmitter {
       this.checkDecorators(declaration.decorators, validDecorators)
     );
     if (!parent.add(name, element)) return null;
+    if (element.hasDecorator(DecoratorFlags.EXPORT_JSON))
+      this.exportedToJsonFunctions.push(element);
     return element;
   }
 
@@ -3509,6 +3516,12 @@ export class FunctionPrototype extends DeclaredElement {
     return bound;
   }
 
+  getGenericBoundInstance(classInstance: Class): FunctionPrototype | null {
+    if (this.boundPrototypes?.has(classInstance))
+      return assert(this.boundPrototypes?.get(classInstance));
+    return null;
+  }
+
   /** Gets the resolved instance for the specified instance key, if already resolved. */
   getResolvedInstance(instanceKey: string): Function | null {
     var instances = this.instances;
@@ -3578,7 +3591,9 @@ export class Function extends TypedElement {
     /** Concrete signature. */
     signature: Signature, // pre-resolved
     /** Contextual type arguments inherited from its parent class, if any. */
-    contextualTypeArguments: Map<string,Type> | null = null
+    contextualTypeArguments: Map<string,Type> | null = null,
+    /** Element must be registered only if it really exists in the program. */
+    shouldRegisterElement = true
   ) {
     super(
       ElementKind.FUNCTION,
@@ -3625,7 +3640,8 @@ export class Function extends TypedElement {
       }
     }
     this.flow = Flow.createParent(this);
-    registerConcreteElement(program, this);
+    if (shouldRegisterElement)
+      registerConcreteElement(program, this);
   }
 
   /** Gets the name of the parameter at the specified index. */
@@ -4199,7 +4215,9 @@ export class Class extends TypedElement {
     prototype: ClassPrototype,
     /** Concrete type arguments, if any. */
     typeArguments: Type[] | null = null,
-    _isInterface: bool = false // FIXME
+    _isInterface: bool = false, // FIXME
+    /** Element must be registered only if it really exists in the program. */
+    shouldRegisterElement = true
   ) {
     super(
       _isInterface ? ElementKind.INTERFACE : ElementKind.CLASS,
@@ -4242,7 +4260,8 @@ export class Class extends TypedElement {
     } else if (typeParameters !== null && typeParameters.length > 0) {
       throw new Error("type argument count mismatch");
     }
-    registerConcreteElement(program, this);
+    if (shouldRegisterElement)
+      registerConcreteElement(program, this);
   }
 
   /** Sets the base class. */
@@ -4572,12 +4591,15 @@ export class Interface extends Class { // FIXME
     prototype: InterfacePrototype,
     /** Concrete type arguments, if any. */
     typeArguments: Type[] | null = null,
+    /** Element must be registered only if it really exists in the program. */
+    shouldRegisterElement = true
   ) {
     super(
       nameInclTypeParameters,
       prototype,
       typeArguments,
-      true
+      true,
+      shouldRegisterElement
     );
   }
 }

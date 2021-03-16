@@ -2772,7 +2772,8 @@ export class Resolver extends DiagnosticEmitter {
       prototype,
       typeArguments,
       signature,
-      ctxTypes
+      ctxTypes,
+      resolveMode == ResolveMode.STRICT
     );
     if (resolveMode == ResolveMode.STRICT)
       prototype.setResolvedInstance(instanceKey, instance);
@@ -2864,8 +2865,20 @@ export class Resolver extends DiagnosticEmitter {
     /** Contextual types, i.e. `T`. */
     ctxTypes: Map<string,Type> = uniqueMap<string,Type>(),
     /** How to proceed with eventual diagnostics. */
-    reportMode: ReportMode = ReportMode.REPORT
+    reportMode: ReportMode = ReportMode.REPORT,
+    /** How to proceed with unspecified type parameters. */
+    resolveMode: ResolveMode = ResolveMode.STRICT
   ): Class | null {
+    if (resolveMode == ResolveMode.GENERIC) {
+      let typeParameterNodes = prototype.typeParameterNodes;
+      if (typeParameterNodes) {
+        typeArguments = [];
+        let numTypeParameters = typeParameterNodes.length;
+        for (let i = 0; i < numTypeParameters; ++i) {
+          typeArguments.push(new TypePlaceholder(ctxTypes.size + i));
+        }
+      }
+    }
     var instanceKey = typeArguments ? typesToString(typeArguments) : "";
 
     // Do not attempt to resolve the same class twice. This can return a class
@@ -2877,9 +2890,11 @@ export class Resolver extends DiagnosticEmitter {
     var nameInclTypeParamters = prototype.name;
     if (instanceKey.length) nameInclTypeParamters += "<" + instanceKey + ">";
     if (prototype.kind == ElementKind.INTERFACE_PROTOTYPE) {
-      instance = new Interface(nameInclTypeParamters, <InterfacePrototype>prototype, typeArguments);
+      instance = new Interface(nameInclTypeParamters, <InterfacePrototype>prototype, typeArguments,
+        resolveMode == ResolveMode.STRICT);
     } else {
-      instance = new Class(nameInclTypeParamters, prototype, typeArguments);
+      instance = new Class(nameInclTypeParamters, prototype, typeArguments,
+        false, resolveMode == ResolveMode.STRICT);
     }
     prototype.setResolvedInstance(instanceKey, instance);
     var pendingClasses = this.resolveClassPending;

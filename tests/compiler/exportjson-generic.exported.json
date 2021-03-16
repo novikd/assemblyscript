@@ -1,0 +1,26 @@
+[
+  {
+    "functionName": "test",
+    "functionSignature": "<T$0> (exportjson-generic/Test<T$0>) => exportjson-generic/Test<T$0>",
+    "instantiationSignatures": [
+      "(exportjson-generic/Test<i32>) => exportjson-generic/Test<i32>"
+    ]
+  },
+  {
+    "functionName": "bar",
+    "functionSignature": "(this: exportjson-generic/Foo) => exportjson-generic/Test<~lib/string/String>"
+  },
+  {
+    "functionName": "foo",
+    "functionSignature": "(this: exportjson-generic/Bar<T$0>) => void"
+  },
+  {
+    "functionName": "bar",
+    "functionSignature": "(this: exportjson-generic/Bar<T$0>, T$0) => T$0"
+  },
+  {
+    "functionName": "complex",
+    "functionSignature": "<T$1> (this: exportjson-generic/Bar<T$0>, T$1) => T$1",
+    "instantiationSignatures": []
+  }
+]

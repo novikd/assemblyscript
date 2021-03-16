@@ -716,28 +716,38 @@ export class Compiler extends DiagnosticEmitter {
       new RtraceMemory(this).walkModule();
     }
 
-    for (let _values = Map_values(program.elementsByName), i = 0, k = _values.length; i < k; ++i) {
-      let element = unchecked(_values[i]);
-      if (element.kind != ElementKind.FUNCTION_PROTOTYPE) continue;
-      let prototype = <FunctionPrototype>element;
-      if (prototype.hasDecorator(DecoratorFlags.EXPORT_JSON)) {
-        let generalSignature : string;
+    let exportedToJsonFunctions = program.exportedToJsonFunctions;
+    for (let i = 0; i < exportedToJsonFunctions.length; ++i) {
+      let prototype = exportedToJsonFunctions[i];
+      let actualParent = prototype.parent.kind == ElementKind.PROPERTY_PROTOTYPE
+        ? prototype.parent.parent
+        : prototype.parent;
 
-        if (prototype.isGeneric) {
-          let resolvedSignature = this.resolver.resolveFunction(prototype, null, uniqueMap<string,Type>(), ReportMode.SWALLOW, ResolveMode.GENERIC);
-          if (!resolvedSignature) continue;
-          generalSignature = resolvedSignature.signature.toString();
-          let instances = prototype.instances;
-          let instantiationSignatures = !instances ? [] : Map_values(instances)
-            .map(instantiation => instantiation.signature.toString());
-          module.addJsonExportedSignature(new GenericJsonExportedSignature(prototype.name, generalSignature, instantiationSignatures));
-        }
-        else {
-          let resolvedFunction = this.resolver.resolveFunction(prototype, null);
-          if (!resolvedFunction) continue;
-          generalSignature = resolvedFunction.signature.toString();
-          module.addJsonExportedSignature(new JsonExportedSignature(prototype.name, generalSignature));
-        }
+      let ctxTypes = uniqueMap<string,Type>();
+      if (prototype.is(CommonFlags.INSTANCE)) {
+        assert(actualParent.kind == ElementKind.CLASS_PROTOTYPE
+          || actualParent.kind == ElementKind.INTERFACE_PROTOTYPE);
+        let classInstance = this.resolver.resolveClass(<ClassPrototype>actualParent, null, ctxTypes,
+          ReportMode.SWALLOW, ResolveMode.GENERIC);
+        if (!classInstance) continue;
+        let boundInstance = prototype.getGenericBoundInstance(classInstance);
+        if (!boundInstance) continue;
+        prototype = boundInstance;
+      }
+
+      let resolvedSignature = this.resolver.resolveFunction(prototype, null,
+        ctxTypes, ReportMode.SWALLOW, ResolveMode.GENERIC);
+      if (!resolvedSignature) continue;
+      let signature = resolvedSignature.signature.toString();
+
+      if (prototype.isGeneric) {
+        let instances = prototype.instances;
+        let instantiationSignatures = !instances ? [] : Map_values(instances)
+          .map(instantiation => instantiation.signature.toString());
+        module.addJsonExportedSignature(new GenericJsonExportedSignature(prototype.name, signature, instantiationSignatures));
+      }
+      else {
+        module.addJsonExportedSignature(new JsonExportedSignature(prototype.name, signature));
       }
     }
 
